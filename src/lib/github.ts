@@ -1,30 +1,48 @@
-// GitHub Integration — Octokit wrapper for creating branches, committing
+// GitHub Integration — raw fetch wrapper for creating branches, committing
 // schema files, and opening PRs against the openinherit/standard repo.
+// Uses fetch instead of Octokit to avoid library issues on Vercel.
 
-import { Octokit } from "octokit";
-
-// Lazy-initialised so the module can be imported in tests without a token.
-let _octokit: Octokit | null = null;
-
-function getOctokit(): Octokit {
-  if (!_octokit) {
-    const token = process.env.GITHUB_TOKEN?.trim();
-    if (!token) throw new Error("GITHUB_TOKEN is not set");
-    _octokit = new Octokit({ auth: token });
-  }
-  return _octokit;
+function getToken(): string {
+  const token = process.env.GITHUB_TOKEN?.trim();
+  if (!token) throw new Error("GITHUB_TOKEN is not set");
+  return token;
 }
 
 function getOwner(): string {
-  const owner = process.env.GITHUB_OWNER;
+  const owner = process.env.GITHUB_OWNER?.trim();
   if (!owner) throw new Error("GITHUB_OWNER is not set");
   return owner;
 }
 
 function getRepo(): string {
-  const repo = process.env.GITHUB_REPO;
+  const repo = process.env.GITHUB_REPO?.trim();
   if (!repo) throw new Error("GITHUB_REPO is not set");
   return repo;
+}
+
+async function ghApi(
+  path: string,
+  options: { method?: string; body?: unknown } = {},
+): Promise<unknown> {
+  const token = getToken();
+  const url = `https://api.github.com${path}`;
+  const res = await fetch(url, {
+    method: options.method ?? "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub API ${res.status}: ${text.substring(0, 200)}`);
+  }
+
+  return res.json();
 }
 
 // ------------------------------------------------------------------
@@ -32,24 +50,19 @@ function getRepo(): string {
 // ------------------------------------------------------------------
 
 export async function getFileContent(path: string): Promise<string | null> {
-  const octokit = getOctokit();
   const owner = getOwner();
   const repo = getRepo();
 
   try {
-    const { data } = await octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref: "main",
-    });
+    const data = (await ghApi(
+      `/repos/${owner}/${repo}/contents/${path}?ref=main`,
+    )) as { content?: string };
 
-    if ("content" in data) {
+    if (data.content) {
       return Buffer.from(data.content, "base64").toString("utf-8");
     }
     return null;
   } catch {
-    // 404 = file doesn't exist yet
     return null;
   }
 }
@@ -63,80 +76,60 @@ export async function createBranchAndCommit(
   files: Array<{ path: string; content: string }>,
   commitMessage: string,
 ): Promise<string> {
-  const octokit = getOctokit();
   const owner = getOwner();
   const repo = getRepo();
 
-  const tokenPrefix = process.env.GITHUB_TOKEN?.substring(0, 15) ?? "MISSING";
-  console.log("[github] createBranchAndCommit:", { branchName, owner, repo, fileCount: files.length, tokenPrefix });
+  console.log("[github] creating branch:", branchName, "files:", files.map((f) => f.path));
 
   // Get the SHA that main currently points at
-  let baseSha: string;
-  try {
-    const { data: ref } = await octokit.rest.git.getRef({
-      owner,
-      repo,
-      ref: "heads/main",
-    });
-    baseSha = ref.object.sha;
-    console.log("[github] base SHA:", baseSha);
-  } catch (e: unknown) {
-    const err = e as { status?: number; message?: string };
-    console.error("[github] getRef failed:", err.status, err.message);
-    throw e;
-  }
+  const ref = (await ghApi(
+    `/repos/${owner}/${repo}/git/ref/heads/main`,
+  )) as { object: { sha: string } };
+  const baseSha = ref.object.sha;
+  console.log("[github] base SHA:", baseSha);
 
   // Create the new branch
-  await octokit.rest.git.createRef({
-    owner,
-    repo,
-    ref: `refs/heads/${branchName}`,
-    sha: baseSha,
+  await ghApi(`/repos/${owner}/${repo}/git/refs`, {
+    method: "POST",
+    body: { ref: `refs/heads/${branchName}`, sha: baseSha },
   });
+  console.log("[github] branch created:", branchName);
 
   // Create blobs for every file
   const blobs = await Promise.all(
     files.map(async (file) => {
-      const { data: blob } = await octokit.rest.git.createBlob({
-        owner,
-        repo,
-        content: file.content,
-        encoding: "utf-8",
-      });
+      const blob = (await ghApi(`/repos/${owner}/${repo}/git/blobs`, {
+        method: "POST",
+        body: { content: file.content, encoding: "utf-8" },
+      })) as { sha: string };
       return {
         path: file.path,
-        mode: "100644" as const,
-        type: "blob" as const,
+        mode: "100644",
+        type: "blob",
         sha: blob.sha,
       };
     }),
   );
 
   // Build a tree that layers the new blobs on top of the base
-  const { data: tree } = await octokit.rest.git.createTree({
-    owner,
-    repo,
-    base_tree: baseSha,
-    tree: blobs,
-  });
+  const tree = (await ghApi(`/repos/${owner}/${repo}/git/trees`, {
+    method: "POST",
+    body: { base_tree: baseSha, tree: blobs },
+  })) as { sha: string };
 
   // Create the commit
-  const { data: commit } = await octokit.rest.git.createCommit({
-    owner,
-    repo,
-    message: commitMessage,
-    tree: tree.sha,
-    parents: [baseSha],
-  });
+  const commit = (await ghApi(`/repos/${owner}/${repo}/git/commits`, {
+    method: "POST",
+    body: { message: commitMessage, tree: tree.sha, parents: [baseSha] },
+  })) as { sha: string };
 
   // Point the branch at the new commit
-  await octokit.rest.git.updateRef({
-    owner,
-    repo,
-    ref: `heads/${branchName}`,
-    sha: commit.sha,
+  await ghApi(`/repos/${owner}/${repo}/git/refs/heads/${branchName}`, {
+    method: "PATCH",
+    body: { sha: commit.sha },
   });
 
+  console.log("[github] committed:", commit.sha);
   return commit.sha;
 }
 
@@ -149,18 +142,14 @@ export async function createPullRequest(
   title: string,
   body: string,
 ): Promise<{ number: number; url: string }> {
-  const octokit = getOctokit();
   const owner = getOwner();
   const repo = getRepo();
 
-  const { data: pr } = await octokit.rest.pulls.create({
-    owner,
-    repo,
-    title,
-    body,
-    head: branchName,
-    base: "main",
-  });
+  const pr = (await ghApi(`/repos/${owner}/${repo}/pulls`, {
+    method: "POST",
+    body: { title, body, head: branchName, base: "main" },
+  })) as { number: number; html_url: string };
 
+  console.log("[github] PR created:", pr.number, pr.html_url);
   return { number: pr.number, url: pr.html_url };
 }
