@@ -12,12 +12,31 @@ export async function listExtensions() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("extensions")
-    .select("slug, name, legal_tradition, extension_type, key_features, maturity")
+    .select(
+      `
+      slug, name, legal_tradition, extension_type, key_features, maturity, metadata,
+      properties (coverage_area)
+    `,
+    )
     .order("name");
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+  // Cast because the manual Database type lacks relationship metadata for
+  // the nested select; PostgREST returns arrays at runtime.
+  return (data ?? []) as unknown as ListExtension[];
 }
+
+/** Shape returned by listExtensions() — extension with nested property rows. */
+export type ListExtension = {
+  slug: string;
+  name: string;
+  legal_tradition: string | null;
+  extension_type: string;
+  key_features: string | null;
+  maturity: string;
+  metadata: Record<string, unknown>;
+  properties: { coverage_area: string | null }[];
+};
 
 /** Extension with joined property groups, properties, and drafts. */
 export type ExtensionDetail = ExtensionRow & {
