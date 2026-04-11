@@ -85,13 +85,13 @@ export default async function SuccessionPage(props: {
           + Add property
         </Link>
         {draftCount > 0 && (
-          <button
-            type="button"
+          <Link
+            href="/publish"
             className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
           >
             Publish {draftCount} draft{draftCount !== 1 ? "s" : ""} &rarr;
             Create PR
-          </button>
+          </Link>
         )}
       </div>
     </div>

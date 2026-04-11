@@ -46,6 +46,12 @@ export default async function AdminLayout({
           >
             Partners
           </Link>
+          <Link
+            href="/publish"
+            className="font-medium text-indigo-600 hover:underline"
+          >
+            Publish
+          </Link>
           <span className="text-gray-300">|</span>
           <span>{profile.email}</span>
           <form action="/auth/signout" method="post">
