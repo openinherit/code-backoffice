@@ -50,3 +50,30 @@ export async function discardDraft(draftId: string) {
 
   if (error) throw new Error(error.message);
 }
+
+export async function listSharedDefinitions() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("shared_definitions")
+    .select("id, name, description, field_summary")
+    .order("name");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function listPropertyGroups(
+  extensionSlug: string,
+  coverageArea: string,
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("property_groups")
+    .select("id, name, description, display_order")
+    .eq("extension_id", extensionSlug)
+    .eq("coverage_area", coverageArea)
+    .order("display_order");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
