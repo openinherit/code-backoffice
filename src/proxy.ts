@@ -16,6 +16,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Handle PKCE auth redirect — Supabase redirects to site root with ?code=
+  // Route it to /auth/callback so the handler can exchange the code
+  const code = request.nextUrl.searchParams.get("code");
+  if (code) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
