@@ -92,31 +92,16 @@ export default async function TaxPage(props: {
             const groupPublished = publishedProps.filter(
               (p) => p.group_id === group.id,
             );
-            const allProps = [
-              ...groupPublished.map((p) => ({
-                ...p,
-                isDraft: false as const,
-              })),
-              ...draftProps.map((d) => ({
-                ...d,
-                isDraft: true as const,
-              })),
-            ];
 
             return (
               <PropertyGroup
                 key={group.id}
                 name={group.name}
                 description={group.description}
-                properties={
-                  groupPublished.length === 0 && draftProps.length === 0
-                    ? []
-                    : allProps.filter(
-                        (p) =>
-                          ("group_id" in p && p.group_id === group.id) ||
-                          !("group_id" in p),
-                      )
-                }
+                properties={groupPublished.map((p) => ({
+                  ...p,
+                  isDraft: false as const,
+                }))}
                 extensionSlug={params.slug}
                 coverageArea="tax"
               />
@@ -127,13 +112,29 @@ export default async function TaxPage(props: {
         <PropertyGroup
           name="Ungrouped"
           description={null}
-          properties={[
-            ...publishedProps.map((p) => ({ ...p, isDraft: false as const })),
-            ...draftProps.map((d) => ({ ...d, isDraft: true as const })),
-          ]}
+          properties={publishedProps.map((p) => ({
+            ...p,
+            isDraft: false as const,
+          }))}
           extensionSlug={params.slug}
           coverageArea="tax"
         />
+      )}
+
+      {/* Ungrouped drafts — shown separately so they don't appear in every group */}
+      {draftProps.length > 0 && (
+        <div className="mt-6">
+          <PropertyGroup
+            name="Drafts (ungrouped)"
+            description="Drafts not yet assigned to a property group"
+            properties={draftProps.map((d) => ({
+              ...d,
+              isDraft: true as const,
+            }))}
+            extensionSlug={params.slug}
+            coverageArea="tax"
+          />
+        </div>
       )}
 
       <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">

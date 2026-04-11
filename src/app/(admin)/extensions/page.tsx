@@ -1,7 +1,7 @@
 import { listExtensions } from "@/actions/extensions";
-import { ExtensionsTable } from "@/components/extensions-table";
+import { FilteredExtensionsTable } from "@/components/extensions-filters";
 
 export default async function ExtensionsPage() {
   const extensions = await listExtensions();
-  return <ExtensionsTable extensions={extensions} />;
+  return <FilteredExtensionsTable extensions={extensions} />;
 }

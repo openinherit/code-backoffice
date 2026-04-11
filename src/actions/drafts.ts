@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { PropertyDraftRow } from "@/lib/supabase/types";
 
@@ -146,6 +147,8 @@ export async function approveDraft(draftId: string) {
     .eq("id", draftId);
 
   if (error) throw new Error(error.message);
+
+  revalidatePath("/partners/drafts");
 }
 
 // ------------------------------------------------------------------
@@ -170,4 +173,6 @@ export async function rejectDraft(draftId: string, note: string) {
     .eq("id", draftId);
 
   if (error) throw new Error(error.message);
+
+  revalidatePath("/partners/drafts");
 }

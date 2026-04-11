@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type {
   OrganisationRow,
   OrganisationAssignmentRow,
@@ -8,6 +9,17 @@ import type {
   InvitationRow,
   PropertyDraftRow,
 } from "@/lib/supabase/types";
+
+// ------------------------------------------------------------------
+// Admin client for privileged operations (e.g. sending invite emails)
+// ------------------------------------------------------------------
+
+function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 // ------------------------------------------------------------------
 // Composite types returned by queries
@@ -283,6 +295,19 @@ export async function createOrganisation(data: {
   });
 
   if (inviteError) throw new Error(inviteError.message);
+
+  // Send the actual invite email via the Admin API
+  const admin = createAdminClient();
+  const { error: emailError } = await admin.auth.admin.inviteUserByEmail(
+    data.adminEmail,
+    {
+      data: { role: "org_admin", organisation_id: slug },
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
+  );
+  if (emailError) {
+    console.error("[invite] email failed:", emailError.message);
+  }
 
   return org;
 }

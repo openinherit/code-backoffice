@@ -142,30 +142,6 @@ export function ExtensionsTable({
 
   return (
     <div className="overflow-x-auto">
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-6 py-3">
-        <input
-          className="w-[200px] rounded-md border border-gray-300 px-2.5 py-1.5 text-xs"
-          placeholder="Search extensions..."
-        />
-        <select className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs">
-          <option>All succession</option>
-          <option>Comprehensive</option>
-          <option>Partial</option>
-          <option>Outline</option>
-        </select>
-        <select className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs">
-          <option>All tax</option>
-          <option>Comprehensive</option>
-          <option>Partial</option>
-          <option>Outline</option>
-        </select>
-        <div className="flex-1" />
-        <button className="rounded-md bg-indigo-600 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">
-          + New Extension
-        </button>
-      </div>
-
       {/* Table */}
       <table className="w-full border-collapse text-xs">
         <thead>
