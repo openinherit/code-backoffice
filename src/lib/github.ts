@@ -8,7 +8,7 @@ let _octokit: Octokit | null = null;
 
 function getOctokit(): Octokit {
   if (!_octokit) {
-    const token = process.env.GITHUB_TOKEN;
+    const token = process.env.GITHUB_TOKEN?.trim();
     if (!token) throw new Error("GITHUB_TOKEN is not set");
     _octokit = new Octokit({ auth: token });
   }
