@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type Extension = {
   slug: string;
   name: string;
@@ -41,7 +43,12 @@ export function ExtensionsTable({ extensions }: { extensions: Extension[] }) {
             {extensions.map((ext) => (
               <tr key={ext.slug} className="border-b border-gray-100">
                 <td className="px-4 py-2 font-semibold text-gray-900">
-                  {ext.name}
+                  <Link
+                    href={`/extensions/${ext.slug}`}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    {ext.name}
+                  </Link>
                 </td>
                 <td className="px-4 py-2 text-gray-500">
                   {ext.legal_tradition ?? "—"}

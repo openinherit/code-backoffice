@@ -192,12 +192,14 @@ export type PropertyInsert = Omit<PropertyRow, "id" | "created_at" | "updated_at
 
 export type PropertyDraftInsert = Omit<
   PropertyDraftRow,
-  "id" | "created_at" | "updated_at"
+  "id" | "created_at" | "updated_at" | "reviewer_id" | "review_note"
 > & {
   id?: string;
   schema_type?: string;
   schema_definition?: Record<string, unknown>;
   status?: DraftStatus;
+  reviewer_id?: string | null;
+  review_note?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -255,7 +257,29 @@ export type Database = {
         Row: ExtensionRow;
         Insert: ExtensionInsert;
         Update: ExtensionUpdate;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "property_groups_extension_id_fkey";
+            columns: ["slug"];
+            isOneToOne: false;
+            referencedRelation: "property_groups";
+            referencedColumns: ["extension_id"];
+          },
+          {
+            foreignKeyName: "properties_extension_id_fkey";
+            columns: ["slug"];
+            isOneToOne: false;
+            referencedRelation: "properties";
+            referencedColumns: ["extension_id"];
+          },
+          {
+            foreignKeyName: "property_drafts_extension_id_fkey";
+            columns: ["slug"];
+            isOneToOne: false;
+            referencedRelation: "property_drafts";
+            referencedColumns: ["extension_id"];
+          },
+        ];
       };
       organisation_assignments: {
         Row: OrganisationAssignmentRow;
