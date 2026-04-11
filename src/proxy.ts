@@ -6,7 +6,13 @@ const publicRoutes = ["/login", "/auth/callback"];
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (publicRoutes.some((route) => pathname.startsWith(route))) {
+  // Skip static assets and public routes
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.match(/\.(css|js|svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|ico)$/) ||
+    publicRoutes.some((route) => pathname.startsWith(route))
+  ) {
     return NextResponse.next();
   }
 
