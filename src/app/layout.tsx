@@ -5,6 +5,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "INHERIT Backoffice",
   description: "Extensions administration for the INHERIT open estate data standard",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
