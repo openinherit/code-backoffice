@@ -80,11 +80,11 @@ CREATE POLICY org_assignments_member_select ON organisation_assignments
 -- Profiles
 -- ----------------------------------------------------------
 
--- Admins can do everything
+-- Admins can do everything (uses JWT metadata to avoid recursion — is_admin() queries profiles)
 CREATE POLICY profiles_admin_all ON profiles
   FOR ALL
-  USING (is_admin())
-  WITH CHECK (is_admin());
+  USING ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin');
 
 -- Users can view their own profile
 CREATE POLICY profiles_self_select ON profiles
@@ -97,16 +97,12 @@ CREATE POLICY profiles_self_update ON profiles
   USING (id = auth.uid())
   WITH CHECK (id = auth.uid());
 
--- Org admins can view profiles within their org
+-- Org admins can view profiles within their org (avoids querying profiles for role check)
 CREATE POLICY profiles_org_admin_select ON profiles
   FOR SELECT
   USING (
     organisation_id = user_org_id()
-    AND EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('org_admin', 'admin')
-    )
+    AND (auth.jwt() -> 'user_metadata' ->> 'role') IN ('org_admin', 'admin')
   );
 
 -- ----------------------------------------------------------
