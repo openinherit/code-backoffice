@@ -15,7 +15,16 @@ export function AuthListener() {
     if (pathname !== "/login") return;
 
     const hash = window.location.hash;
-    if (!hash || !hash.includes("access_token")) return;
+    if (!hash) return;
+
+    // Handle error fragments (e.g. expired magic link)
+    if (hash.includes("error=")) {
+      // Clear the hash so the error doesn't persist on refresh
+      window.history.replaceState(null, "", "/login");
+      return;
+    }
+
+    if (!hash.includes("access_token")) return;
 
     console.log("[AuthListener] Hash fragment detected, setting session...");
 
