@@ -58,26 +58,30 @@ function CoverageCell({
   coverage: string | null;
   draftCount: number;
 }) {
+  // No properties AND no coverage metadata — show dash
   if (propCount === 0 && !coverage) {
     return (
-      <td className="px-2 py-3 text-center text-gray-400">
-        —
-      </td>
+      <td className="px-2 py-3 text-center text-gray-400">—</td>
     );
   }
 
   const badgeLabel = coverage ? capitalise(coverage) : "Outline";
   const badgeStyle = coverageBadgeStyles[coverage ?? "outline"] ?? coverageBadgeStyles.outline;
   const barColour = progressBarColours[coverage ?? "outline"] ?? progressBarColours.outline;
+  const textColour =
+    coverage === "comprehensive"
+      ? "text-emerald-600"
+      : coverage === "partial"
+        ? "text-indigo-600"
+        : "text-amber-700";
 
-  // Estimate a percentage — in production this would come from admin-set targets
-  // For now: comprehensive = 100%, partial = 50-80%, outline = 10-30%
+  // Percentage — comprehensive=100%, partial scaled by props, outline scaled lower
   const pct =
     coverage === "comprehensive"
       ? 100
       : coverage === "partial"
-        ? Math.min(80, Math.max(40, propCount * 10))
-        : Math.min(30, Math.max(5, propCount * 5));
+        ? Math.min(80, Math.max(40, propCount * 8))
+        : Math.min(30, Math.max(10, propCount * 5));
 
   const areaLabel = area === "succession" ? "succession" : "tax";
 
@@ -91,47 +95,37 @@ function CoverageCell({
       </span>
 
       {/* Prop count */}
-      <br />
-      <span className="text-[10px] text-gray-400">
+      <div className="mt-0.5 text-[10px] text-gray-400">
         {propCount} prop{propCount !== 1 ? "s" : ""}
-      </span>
+      </div>
 
-      {/* Progress bar */}
-      <div className="mx-auto mt-1 flex items-center gap-1">
+      {/* Progress bar + percentage */}
+      <div className="mx-auto mt-0.5 inline-flex items-center gap-1">
         <div className="h-[3px] w-[100px] rounded-full bg-gray-200">
           <div
             className={`h-[3px] rounded-full ${barColour}`}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span
-          className={`text-[9px] font-semibold ${
-            coverage === "comprehensive"
-              ? "text-emerald-600"
-              : coverage === "partial"
-                ? "text-indigo-600"
-                : "text-amber-700"
-          }`}
-        >
+        <span className={`text-[9px] font-semibold ${textColour}`}>
           {pct}%
         </span>
       </div>
 
-      {/* Edit link */}
-      <br />
-      <Link
-        href={`/extensions/${slug}/${areaLabel}`}
-        className="text-[10px] font-medium text-indigo-600 hover:underline"
-      >
-        Edit {areaLabel} →
-      </Link>
-
-      {/* Draft count */}
-      {draftCount > 0 && (
-        <span className="ml-1 rounded bg-amber-50 px-1 py-0.5 text-[9px] font-medium text-amber-700">
-          {draftCount} draft{draftCount !== 1 ? "s" : ""}
-        </span>
-      )}
+      {/* Edit link + draft count */}
+      <div className="mt-0.5">
+        <Link
+          href={`/extensions/${slug}/${areaLabel}`}
+          className="text-[10px] font-medium text-indigo-600 hover:underline"
+        >
+          Edit {areaLabel} →
+        </Link>
+        {draftCount > 0 && (
+          <span className="ml-1 rounded bg-amber-50 px-1 py-0.5 text-[9px] font-medium text-amber-700">
+            {draftCount} draft{draftCount !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
     </td>
   );
 }
