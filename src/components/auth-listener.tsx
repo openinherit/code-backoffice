@@ -1,31 +1,44 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * Listens for Supabase auth events (e.g. hash fragment tokens from magic links)
+ * Detects Supabase auth tokens in URL hash fragments (implicit flow)
  * and redirects authenticated users to the appropriate page.
- *
- * Mounted in the root layout so it runs on every page.
  */
 export function AuthListener() {
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
+    // Only run on the login page where hash fragments arrive
+    if (pathname !== "/login") return;
+
+    const hash = window.location.hash;
+    if (!hash || !hash.includes("access_token")) return;
+
     const supabase = createClient();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === "SIGNED_IN") {
-        // Get the user's role to determine redirect
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+    // Parse the hash fragment and set the session
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
 
-        if (user) {
+    if (accessToken && refreshToken) {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(async ({ data: { user }, error }) => {
+          if (error || !user) {
+            console.error("Failed to set session:", error);
+            return;
+          }
+
+          // Clear the hash from the URL
+          window.history.replaceState(null, "", "/login");
+
+          // Get role for redirect
           const { data: profile } = await supabase
             .from("profiles")
             .select("role")
@@ -37,14 +50,9 @@ export function AuthListener() {
           } else {
             router.push("/");
           }
-        }
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
+        });
+    }
+  }, [pathname, router]);
 
   return null;
 }
