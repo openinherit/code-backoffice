@@ -45,21 +45,9 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const allCookies = request.cookies.getAll();
-  console.log("[proxy]", pathname, "cookies:", allCookies.map(c => `${c.name}=${c.value.substring(0, 20)}...`));
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  console.log("[proxy]", pathname, "user:", user?.email ?? "null", "error:", error?.message ?? "none");
-
-  if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+  // Auth check — refresh session cookies but don't block.
+  // The admin/partner layouts handle auth redirects.
+  await supabase.auth.getUser();
 
   return supabaseResponse;
 }
