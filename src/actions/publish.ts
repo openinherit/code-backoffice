@@ -202,6 +202,20 @@ export async function publishDrafts(data: {
   draftIds: string[];
   title: string;
   description: string;
+}): Promise<{ prNumber: number; prUrl: string } | { error: string }> {
+  try {
+  return await publishDraftsInner(data);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[publishDrafts] error:", msg);
+    return { error: msg };
+  }
+}
+
+async function publishDraftsInner(data: {
+  draftIds: string[];
+  title: string;
+  description: string;
 }): Promise<{ prNumber: number; prUrl: string }> {
   const supabase = await createClient();
 

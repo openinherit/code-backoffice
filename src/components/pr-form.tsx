@@ -35,6 +35,11 @@ export function PrForm({
           description,
         });
 
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+
         const params = new URLSearchParams({
           pr_number: String(result.prNumber),
           pr_url: result.prUrl,
