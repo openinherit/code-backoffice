@@ -67,7 +67,8 @@ export async function createBranchAndCommit(
   const owner = getOwner();
   const repo = getRepo();
 
-  console.log("[github] createBranchAndCommit:", { branchName, owner, repo, fileCount: files.length, filePaths: files.map(f => f.path) });
+  const tokenPrefix = process.env.GITHUB_TOKEN?.substring(0, 15) ?? "MISSING";
+  console.log("[github] createBranchAndCommit:", { branchName, owner, repo, fileCount: files.length, tokenPrefix });
 
   // Get the SHA that main currently points at
   let baseSha: string;
