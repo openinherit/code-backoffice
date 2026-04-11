@@ -67,13 +67,23 @@ export async function createBranchAndCommit(
   const owner = getOwner();
   const repo = getRepo();
 
+  console.log("[github] createBranchAndCommit:", { branchName, owner, repo, fileCount: files.length, filePaths: files.map(f => f.path) });
+
   // Get the SHA that main currently points at
-  const { data: ref } = await octokit.rest.git.getRef({
-    owner,
-    repo,
-    ref: "heads/main",
-  });
-  const baseSha = ref.object.sha;
+  let baseSha: string;
+  try {
+    const { data: ref } = await octokit.rest.git.getRef({
+      owner,
+      repo,
+      ref: "heads/main",
+    });
+    baseSha = ref.object.sha;
+    console.log("[github] base SHA:", baseSha);
+  } catch (e: unknown) {
+    const err = e as { status?: number; message?: string };
+    console.error("[github] getRef failed:", err.status, err.message);
+    throw e;
+  }
 
   // Create the new branch
   await octokit.rest.git.createRef({
