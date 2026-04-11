@@ -47,6 +47,7 @@ describe("InviteModal", () => {
     expect(screen.getByLabelText(/succession/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/tax/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/admin email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/personal message/i)).toBeInTheDocument();
   });
 
   it("shows extension options in the dropdown", async () => {

@@ -94,9 +94,9 @@ function CoverageCell({
         {badgeLabel}
       </span>
 
-      {/* Prop count */}
+      {/* Prop count + test count */}
       <div className="mt-0.5 text-[10px] text-gray-400">
-        {propCount} prop{propCount !== 1 ? "s" : ""}
+        {propCount} prop{propCount !== 1 ? "s" : ""} &middot; 0 tests
       </div>
 
       {/* Progress bar + percentage */}
@@ -137,9 +137,8 @@ export function ExtensionsTable({
 }: {
   extensions: ListExtension[];
 }) {
-  // Count total drafts across all extensions (from property_drafts if available)
-  // TODO: wire up when property_drafts are populated
-  const totalDrafts: number = 0;
+  // Count extensions at draft maturity as a proxy for unpublished work
+  const totalDrafts = extensions.filter((e) => e.maturity === "draft").length;
 
   return (
     <div className="overflow-x-auto">
@@ -230,7 +229,7 @@ export function ExtensionsTable({
                       typeBadgeStyles[ext.extension_type] ?? "bg-gray-100 text-gray-600"
                     }`}
                   >
-                    {ext.extension_type === "geographic" ? "Geographic" : "Tradition"}
+                    {ext.extension_type}
                   </span>
                 </td>
 
@@ -258,7 +257,19 @@ export function ExtensionsTable({
                 />
 
                 {/* Scenarios */}
-                <td className="px-2 py-3 text-center text-gray-400">—</td>
+                <td className="px-2 py-3 text-center">
+                  {typeof ext.metadata?.scenarios === "number" &&
+                  ext.metadata.scenarios > 0 ? (
+                    <Link
+                      href={`/extensions/${ext.slug}/scenarios`}
+                      className="font-medium text-indigo-600 hover:underline"
+                    >
+                      {ext.metadata.scenarios}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-400">&mdash;</span>
+                  )}
+                </td>
 
                 {/* Seeking */}
                 <td className="px-2 py-3 text-[11px] text-gray-500">
@@ -273,7 +284,7 @@ export function ExtensionsTable({
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-gray-200 px-6 py-3 text-xs text-gray-400">
         <span>
-          {extensions.length} extension{extensions.length !== 1 ? "s" : ""}
+          {extensions.length} extension{extensions.length !== 1 ? "s" : ""} total
         </span>
         {totalDrafts > 0 && (
           <Link

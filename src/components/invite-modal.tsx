@@ -19,6 +19,7 @@ export function InviteModal({ extensions }: { extensions: Extension[] }) {
   const [succession, setSuccession] = useState(false);
   const [tax, setTax] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
+  const [personalMessage, setPersonalMessage] = useState("");
 
   function reset() {
     setName("");
@@ -26,6 +27,7 @@ export function InviteModal({ extensions }: { extensions: Extension[] }) {
     setSuccession(false);
     setTax(false);
     setAdminEmail("");
+    setPersonalMessage("");
     setError(null);
     setSuccess(false);
   }
@@ -218,6 +220,73 @@ export function InviteModal({ extensions }: { extensions: Extension[] }) {
                       placeholder="admin@partner.com"
                     />
                   </div>
+
+                  <div>
+                    <label
+                      htmlFor="personal-message"
+                      className="block text-xs font-medium text-gray-700"
+                    >
+                      Personal message{" "}
+                      <span className="font-normal text-gray-400">
+                        (optional)
+                      </span>
+                    </label>
+                    <textarea
+                      id="personal-message"
+                      value={personalMessage}
+                      onChange={(e) => setPersonalMessage(e.target.value)}
+                      rows={3}
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                      placeholder="Add a personal note to the invitation..."
+                    />
+                  </div>
+
+                  {/* Email preview */}
+                  {adminEmail.trim() && name.trim() && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                        Email preview
+                      </p>
+                      <div className="space-y-1 text-xs">
+                        <p>
+                          <span className="font-medium text-gray-500">Subject:</span>{" "}
+                          <span className="text-gray-700">
+                            You&apos;ve been invited to contribute to INHERIT &mdash;{" "}
+                            {extensions.find((e) => e.slug === extensionSlug)?.name ?? "an extension"}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="font-medium text-gray-500">From:</span>{" "}
+                          <span className="text-gray-700">
+                            noreply@openinherit.org
+                          </span>
+                        </p>
+                        <p>
+                          <span className="font-medium text-gray-500">To:</span>{" "}
+                          <span className="text-gray-700">{adminEmail}</span>
+                        </p>
+                        <div className="mt-2 rounded border border-gray-200 bg-white p-2 text-[11px] text-gray-600">
+                          <p>
+                            Hi, you&apos;ve been invited to join{" "}
+                            <strong>{name}</strong> as a partner organisation
+                            on the INHERIT open estate data standard.
+                            {succession && tax
+                              ? " You will contribute to both succession rules and tax treatment."
+                              : succession
+                                ? " You will contribute to succession rules."
+                                : tax
+                                  ? " You will contribute to tax treatment."
+                                  : ""}
+                          </p>
+                          {personalMessage.trim() && (
+                            <p className="mt-1 italic">
+                              &ldquo;{personalMessage.trim()}&rdquo;
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-3">

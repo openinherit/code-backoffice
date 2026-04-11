@@ -42,6 +42,18 @@ describe("TypeInput", () => {
     expect(options).toHaveLength(3);
   });
 
+  it("renders enum values listed below the select", () => {
+    render(
+      <TypeInput
+        name="category"
+        schema={{ enum: ["moveable", "heritable"] }}
+      />,
+    );
+    // Values are listed below the select as well
+    const moveableEls = screen.getAllByText("moveable");
+    expect(moveableEls.length).toBeGreaterThanOrEqual(2); // option + list item
+  });
+
   it("renders array type with item description", () => {
     render(
       <TypeInput
@@ -75,16 +87,58 @@ describe("TypeInput", () => {
     render(
       <TypeInput
         name="amount"
-        schema={{ $ref: "#/$defs/money.json" }}
+        schema={{ $ref: "#/$defs/general.json" }}
       />,
     );
     expect(screen.getByText("amount")).toBeInTheDocument();
-    expect(screen.getByText("$ref: #/$defs/money.json")).toBeInTheDocument();
+    expect(screen.getByText("$ref: #/$defs/general.json")).toBeInTheDocument();
+  });
+
+  it("renders money $ref with amount and currency inputs", () => {
+    render(
+      <TypeInput
+        name="nilRateBand"
+        schema={{ $ref: "#/$defs/money.json" }}
+      />,
+    );
+    expect(screen.getByText("nilRateBand")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Amount")).toBeInTheDocument();
+    expect(screen.getByText("GBP")).toBeInTheDocument();
+    expect(screen.getByText("EUR")).toBeInTheDocument();
+    expect(screen.getByText("USD")).toBeInTheDocument();
+  });
+
+  it("renders temporal-rule $ref with edit link", () => {
+    render(
+      <TypeInput
+        name="applicability"
+        schema={{ $ref: "#/$defs/temporal-rule.json" }}
+      />,
+    );
+    expect(screen.getByText("applicability")).toBeInTheDocument();
+    expect(screen.getByText(/Edit temporal rule/)).toBeInTheDocument();
   });
 
   it("renders unknown type gracefully", () => {
     render(<TypeInput name="mystery" schema={{}} />);
     expect(screen.getByText("mystery")).toBeInTheDocument();
     expect(screen.getByText("unknown")).toBeInTheDocument();
+  });
+
+  it("renders string inputs as editable", () => {
+    render(
+      <TypeInput name="title" schema={{ type: "string" }} />,
+    );
+    const input = screen.getByPlaceholderText("string");
+    expect(input).not.toHaveAttribute("readOnly");
+    expect(input).not.toBeDisabled();
+  });
+
+  it("renders boolean radios as enabled", () => {
+    render(<TypeInput name="exempt" schema={{ type: "boolean" }} />);
+    const radios = screen.getAllByRole("radio");
+    for (const radio of radios) {
+      expect(radio).not.toBeDisabled();
+    }
   });
 });

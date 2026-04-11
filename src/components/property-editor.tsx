@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TypeInput } from "@/components/type-input";
 
 type PropertyEditorProps = {
@@ -7,6 +8,7 @@ type PropertyEditorProps = {
   schemaDefinition: Record<string, unknown>;
   status: string;
   groupName?: string;
+  backHref?: string;
 };
 
 const statusBadge: Record<string, string> = {
@@ -34,6 +36,7 @@ export function PropertyEditor({
   schemaDefinition,
   status,
   groupName,
+  backHref,
 }: PropertyEditorProps) {
   const properties =
     (schemaDefinition.properties as Record<
@@ -117,6 +120,26 @@ export function PropertyEditor({
           {JSON.stringify(schemaDefinition, null, 2)}
         </pre>
       </details>
+
+      {/* Footer — Cancel + Save as draft */}
+      <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+        {backHref ? (
+          <Link
+            href={backHref}
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+          >
+            Cancel
+          </Link>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          className="rounded-md bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+        >
+          Save as draft
+        </button>
+      </div>
     </div>
   );
 }

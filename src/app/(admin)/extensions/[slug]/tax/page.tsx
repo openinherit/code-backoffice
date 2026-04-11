@@ -32,8 +32,54 @@ export default async function TaxPage(props: {
 
   const hasGroups = groups.length > 0;
 
+  const taxCoverage =
+    typeof extension.metadata?.taxCoverage === "string"
+      ? extension.metadata.taxCoverage
+      : null;
+  const coveragePct =
+    taxCoverage === "comprehensive"
+      ? 100
+      : taxCoverage === "partial"
+        ? Math.min(80, Math.max(40, publishedProps.length * 8))
+        : Math.min(30, Math.max(10, publishedProps.length * 5));
+
+  const progressBarColour =
+    taxCoverage === "comprehensive"
+      ? "bg-emerald-600"
+      : taxCoverage === "partial"
+        ? "bg-indigo-600"
+        : "bg-amber-700";
+
+  const progressTextColour =
+    taxCoverage === "comprehensive"
+      ? "text-emerald-600"
+      : taxCoverage === "partial"
+        ? "text-indigo-600"
+        : "text-amber-700";
+
   return (
     <div>
+      {/* Progress bar */}
+      <div className="mb-6 flex items-center gap-3 rounded-lg bg-gray-50 px-4 py-3">
+        <span className="text-xs font-medium text-gray-600">
+          Tax completion:
+        </span>
+        <div className="h-2 flex-1 rounded-full bg-gray-200">
+          <div
+            className={`h-2 rounded-full ${progressBarColour}`}
+            style={{ width: `${coveragePct}%` }}
+          />
+        </div>
+        <span className={`text-xs font-semibold ${progressTextColour}`}>
+          {coveragePct}%
+        </span>
+        {draftCount > 0 && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+            {draftCount} unpublished draft{draftCount !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
       {!hasGroups && publishedProps.length === 0 && draftProps.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 px-6 py-12 text-center">
           <p className="text-sm text-gray-500">

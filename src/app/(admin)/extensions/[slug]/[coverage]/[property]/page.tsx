@@ -67,6 +67,7 @@ export default async function PropertyPage(props: {
           schemaDefinition={property.schema_definition ?? {}}
           status={status}
           groupName={group?.name}
+          backHref={`/extensions/${params.slug}/${params.coverage}`}
         />
       </div>
 

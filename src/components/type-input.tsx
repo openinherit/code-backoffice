@@ -10,9 +10,20 @@ function resolveType(schema: Record<string, unknown>): string {
   return "unknown";
 }
 
+function isMoneyRef(schema: Record<string, unknown>): boolean {
+  return typeof schema.$ref === "string" && schema.$ref.includes("money");
+}
+
+function isTemporalRuleRef(schema: Record<string, unknown>): boolean {
+  return (
+    typeof schema.$ref === "string" && schema.$ref.includes("temporal-rule")
+  );
+}
+
 function StringDisplay({ name, schema }: SubProperty) {
   const format = schema.format as string | undefined;
   const pattern = schema.pattern as string | undefined;
+  const examples = schema.examples as string[] | undefined;
 
   return (
     <div className="flex items-start gap-3">
@@ -23,14 +34,23 @@ function StringDisplay({ name, schema }: SubProperty) {
             <span className="ml-1 text-[10px] text-gray-400">({format})</span>
           )}
         </label>
-        <input
-          type="text"
-          readOnly
-          placeholder={
-            pattern ? `Pattern: ${pattern}` : format ?? "string"
-          }
-          className="mt-1 w-full rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-500"
-        />
+        <div className="mt-1 rounded-md bg-gray-50 p-3">
+          <p className="mb-1 text-[10px] font-medium text-gray-400">
+            Current value
+          </p>
+          <input
+            type="text"
+            placeholder={
+              pattern ? `Pattern: ${pattern}` : format ?? "string"
+            }
+            className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+          />
+          {examples && examples.length > 0 && (
+            <p className="mt-1.5 text-[10px] text-gray-400">
+              Examples: {examples.join(", ")}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -46,16 +66,20 @@ function NumberDisplay({ name, schema }: SubProperty) {
         <label className="block text-xs font-medium text-gray-700">
           {name}
         </label>
-        <input
-          type="number"
-          readOnly
-          placeholder={
-            min !== undefined || max !== undefined
-              ? `${min ?? "..."} – ${max ?? "..."}`
-              : "number"
-          }
-          className="mt-1 w-full rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-500"
-        />
+        <div className="mt-1 rounded-md bg-gray-50 p-3">
+          <p className="mb-1 text-[10px] font-medium text-gray-400">
+            Current value
+          </p>
+          <input
+            type="number"
+            placeholder={
+              min !== undefined || max !== undefined
+                ? `${min ?? "..."} – ${max ?? "..."}`
+                : "number"
+            }
+            className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+          />
+        </div>
       </div>
     </div>
   );
@@ -65,25 +89,30 @@ function BooleanDisplay({ name }: { name: string }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-700">{name}</label>
-      <div className="mt-1 flex gap-3">
-        <label className="flex items-center gap-1 text-xs text-gray-500">
-          <input
-            type="radio"
-            name={name}
-            disabled
-            className="h-3 w-3"
-          />
-          true
-        </label>
-        <label className="flex items-center gap-1 text-xs text-gray-500">
-          <input
-            type="radio"
-            name={name}
-            disabled
-            className="h-3 w-3"
-          />
-          false
-        </label>
+      <div className="mt-1 rounded-md bg-gray-50 p-3">
+        <p className="mb-1 text-[10px] font-medium text-gray-400">
+          Current value
+        </p>
+        <div className="flex gap-3">
+          <label className="flex items-center gap-1 text-xs text-gray-700">
+            <input
+              type="radio"
+              name={name}
+              value="true"
+              className="h-3 w-3 text-indigo-600"
+            />
+            true
+          </label>
+          <label className="flex items-center gap-1 text-xs text-gray-700">
+            <input
+              type="radio"
+              name={name}
+              value="false"
+              className="h-3 w-3 text-indigo-600"
+            />
+            false
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -97,21 +126,34 @@ function EnumDisplay({
   schema: Record<string, unknown>;
 }) {
   const values = (schema.enum as string[]) ?? [];
+  const descriptions = (schema.enumDescriptions as Record<string, string>) ?? {};
 
   return (
     <div>
       <label className="block text-xs font-medium text-gray-700">{name}</label>
-      <select
-        disabled
-        className="mt-1 w-full rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-500"
-      >
-        <option value="">Select...</option>
-        {values.map((v) => (
-          <option key={v} value={v}>
-            {v}
-          </option>
-        ))}
-      </select>
+      <div className="mt-1 rounded-md bg-gray-50 p-3">
+        <p className="mb-1 text-[10px] font-medium text-gray-400">
+          Current value
+        </p>
+        <select className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+          <option value="">Select...</option>
+          {values.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+        {values.length > 0 && (
+          <ul className="mt-2 space-y-0.5">
+            {values.map((v) => (
+              <li key={v} className="text-[10px] text-gray-400">
+                <span className="font-medium text-gray-500">{v}</span>
+                {descriptions[v] && ` — ${descriptions[v]}`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -173,6 +215,58 @@ function ObjectDisplay({
   );
 }
 
+function MoneyDisplay({ name }: { name: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-700">{name}</label>
+      <div className="mt-1 rounded-md bg-gray-50 p-3">
+        <p className="mb-1 text-[10px] font-medium text-gray-400">
+          Current value
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            placeholder="Amount"
+            className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+          />
+          <select className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+            <option value="GBP">GBP</option>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TemporalRuleDisplay({
+  name,
+  schema,
+}: {
+  name: string;
+  schema: Record<string, unknown>;
+}) {
+  const ref = schema.$ref as string;
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-700">{name}</label>
+      <div className="mt-1 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-3">
+        <p className="text-xs text-indigo-600">
+          Temporal rule &mdash; <span className="text-[10px] text-indigo-400">{ref}</span>
+        </p>
+        <a
+          href="#"
+          className="mt-1 inline-block text-xs font-medium text-indigo-600 hover:underline"
+        >
+          Edit temporal rule &rarr;
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function RefDisplay({
   name,
   schema,
@@ -180,6 +274,10 @@ function RefDisplay({
   name: string;
   schema: Record<string, unknown>;
 }) {
+  // Route to specialised displays for known $ref types
+  if (isMoneyRef(schema)) return <MoneyDisplay name={name} />;
+  if (isTemporalRuleRef(schema)) return <TemporalRuleDisplay name={name} schema={schema} />;
+
   const ref = schema.$ref as string;
 
   return (

@@ -156,4 +156,37 @@ describe("PropertyEditor", () => {
     );
     expect(screen.getByText("View raw JSON Schema")).toBeInTheDocument();
   });
+
+  it("renders Save as draft button", () => {
+    render(
+      <PropertyEditor
+        name="legalRights"
+        description={null}
+        schemaType="object"
+        schemaDefinition={mockSchema}
+        status="published"
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: /save as draft/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders Cancel link when backHref is provided", () => {
+    render(
+      <PropertyEditor
+        name="legalRights"
+        description={null}
+        schemaType="object"
+        schemaDefinition={mockSchema}
+        status="published"
+        backHref="/extensions/gb-sc/succession"
+      />,
+    );
+    const cancelLink = screen.getByText("Cancel");
+    expect(cancelLink.closest("a")).toHaveAttribute(
+      "href",
+      "/extensions/gb-sc/succession",
+    );
+  });
 });

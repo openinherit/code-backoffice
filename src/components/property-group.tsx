@@ -5,6 +5,7 @@ type Property = {
   name: string;
   description: string | null;
   schema_type: string;
+  schema_definition?: Record<string, unknown> | null;
   coverage_area: string | null;
   group_id?: string | null;
   status?: string;
@@ -27,6 +28,23 @@ const statusBadge: Record<string, string> = {
   rejected: "bg-red-100 text-red-700",
   publishing: "bg-indigo-100 text-indigo-700",
 };
+
+function fieldCountLabel(
+  schemaType: string,
+  schemaDef: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!schemaDef) return null;
+  if (schemaType === "object") {
+    const props = schemaDef.properties as Record<string, unknown> | undefined;
+    const count = props ? Object.keys(props).length : 0;
+    return `${count} field${count !== 1 ? "s" : ""}`;
+  }
+  if (schemaType === "array") {
+    const maxItems = schemaDef.maxItems as number | undefined;
+    return maxItems !== undefined ? `maxItems ${maxItems}` : null;
+  }
+  return null;
+}
 
 const typeBadge: Record<string, string> = {
   object: "bg-gray-100 text-gray-600",
@@ -89,6 +107,12 @@ export function PropertyGroup({
                   >
                     {prop.schema_type}
                   </span>
+                  {fieldCountLabel(prop.schema_type, prop.schema_definition) && (
+                    <span className="text-[10px] text-gray-400">
+                      {prop.schema_type} &middot;{" "}
+                      {fieldCountLabel(prop.schema_type, prop.schema_definition)}
+                    </span>
+                  )}
                 </div>
                 {prop.description && (
                   <p className="mt-0.5 text-xs text-gray-500">

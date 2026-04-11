@@ -167,6 +167,19 @@ export default async function DraftReviewPage() {
           )}
         </div>
       )}
+
+      {/* Footer with bulk approve */}
+      {drafts.filter((d) => d.status === "partner_draft").length > 0 && (
+        <div className="mt-6 flex items-center justify-end border-t border-gray-200 pt-4">
+          <button
+            type="button"
+            className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+          >
+            Approve all{" "}
+            {drafts.filter((d) => d.status === "partner_draft").length} drafts
+          </button>
+        </div>
+      )}
     </div>
   );
 }
