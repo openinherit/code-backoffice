@@ -68,6 +68,9 @@ export default async function PropertyPage(props: {
           status={status}
           groupName={group?.name}
           backHref={`/extensions/${params.slug}/${params.coverage}`}
+          extensionId={params.slug}
+          coverageArea={params.coverage}
+          propertyId={property.id}
         />
       </div>
 

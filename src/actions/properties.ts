@@ -18,6 +18,15 @@ export async function saveDraft(data: {
 
   if (!user) throw new Error("Not authenticated");
 
+  // Look up the user's role to decide draft status
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const draftStatus = profile?.role === "admin" ? "draft" : "partner_draft";
+
   const { data: draft, error } = await supabase
     .from("property_drafts")
     .upsert(
@@ -29,7 +38,7 @@ export async function saveDraft(data: {
         description: data.description ?? null,
         schema_type: data.schemaType,
         schema_definition: data.schemaDefinition,
-        status: "partner_draft",
+        status: draftStatus,
         author_id: user.id,
       },
       { onConflict: "id" },

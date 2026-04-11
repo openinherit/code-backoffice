@@ -1,5 +1,10 @@
+"use client";
+
+import { useState, useCallback, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TypeInput } from "@/components/type-input";
+import { saveDraft } from "@/actions/properties";
 
 type PropertyEditorProps = {
   name: string;
@@ -9,6 +14,9 @@ type PropertyEditorProps = {
   status: string;
   groupName?: string;
   backHref?: string;
+  extensionId: string;
+  coverageArea: string;
+  propertyId?: string;
 };
 
 const statusBadge: Record<string, string> = {
@@ -37,7 +45,17 @@ export function PropertyEditor({
   status,
   groupName,
   backHref,
+  extensionId,
+  coverageArea,
+  propertyId,
 }: PropertyEditorProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Track edited values for each sub-property
+  const [editedValues, setEditedValues] = useState<Record<string, unknown>>({});
+
   const properties =
     (schemaDefinition.properties as Record<
       string,
@@ -45,6 +63,71 @@ export function PropertyEditor({
     >) ?? {};
   const required = (schemaDefinition.required as string[]) ?? [];
   const subProperties = Object.entries(properties);
+
+  const handleValueChange = useCallback((key: string, value: unknown) => {
+    setEditedValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  // Build the updated schema_definition with edited values merged in
+  const buildUpdatedSchema = useCallback((): Record<string, unknown> => {
+    // If there are no sub-properties, return the original definition
+    if (subProperties.length === 0) return schemaDefinition;
+
+    // Clone the original definition
+    const updated = { ...schemaDefinition };
+
+    // Merge edited values into the properties — only set `default` for
+    // fields the user actually touched, preserving the rest of the schema.
+    const updatedProperties = { ...properties };
+    for (const [key, value] of Object.entries(editedValues)) {
+      if (value !== undefined && value !== "" && updatedProperties[key]) {
+        updatedProperties[key] = {
+          ...updatedProperties[key],
+          default: value,
+        };
+      }
+    }
+    updated.properties = updatedProperties;
+
+    return updated;
+  }, [schemaDefinition, properties, subProperties.length, editedValues]);
+
+  const handleSave = useCallback(() => {
+    setSaveError(null);
+    startTransition(async () => {
+      try {
+        await saveDraft({
+          extensionId,
+          propertyId,
+          coverageArea,
+          name,
+          description: description ?? undefined,
+          schemaType,
+          schemaDefinition: buildUpdatedSchema(),
+        });
+        if (backHref) {
+          router.push(backHref);
+        } else {
+          router.push(`/extensions/${extensionId}/${coverageArea}`);
+        }
+      } catch (err: unknown) {
+        setSaveError(
+          err instanceof Error ? err.message : "Failed to save draft",
+        );
+      }
+    });
+  }, [
+    extensionId,
+    propertyId,
+    coverageArea,
+    name,
+    description,
+    schemaType,
+    buildUpdatedSchema,
+    backHref,
+    router,
+    startTransition,
+  ]);
 
   return (
     <div>
@@ -97,7 +180,12 @@ export function PropertyEditor({
                   className="rounded border border-gray-100 bg-gray-50/50 p-3"
                 >
                   <div className="flex items-center gap-1.5">
-                    <TypeInput name={key} schema={subSchema} />
+                    <TypeInput
+                      name={key}
+                      schema={subSchema}
+                      value={editedValues[key]}
+                      onChange={(v) => handleValueChange(key, v)}
+                    />
                     {required.includes(key) && (
                       <span className="mt-5 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-medium text-red-600">
                         required
@@ -121,6 +209,13 @@ export function PropertyEditor({
         </pre>
       </details>
 
+      {/* Error */}
+      {saveError && (
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          {saveError}
+        </div>
+      )}
+
       {/* Footer — Cancel + Save as draft */}
       <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
         {backHref ? (
@@ -135,9 +230,11 @@ export function PropertyEditor({
         )}
         <button
           type="button"
-          className="rounded-md bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+          onClick={handleSave}
+          disabled={isPending}
+          className="rounded-md bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
-          Save as draft
+          {isPending ? "Saving..." : "Save as draft"}
         </button>
       </div>
     </div>
