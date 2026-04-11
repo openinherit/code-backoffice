@@ -15,15 +15,15 @@ export type PrStatus = "open" | "merged" | "closed";
 // Table row shapes
 // ------------------------------------------------------------------
 
-export interface OrganisationRow {
+export type OrganisationRow = {
   id: string;
   name: string;
   slug: string;
   created_at: string;
   created_by: string | null;
-}
+};
 
-export interface ExtensionRow {
+export type ExtensionRow = {
   slug: string;
   name: string;
   legal_tradition: string | null;
@@ -34,18 +34,18 @@ export interface ExtensionRow {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface OrganisationAssignmentRow {
+export type OrganisationAssignmentRow = {
   id: string;
   org_id: string;
   extension_id: string;
   succession: boolean;
   tax: boolean;
   created_at: string;
-}
+};
 
-export interface ProfileRow {
+export type ProfileRow = {
   id: string;
   email: string;
   display_name: string | null;
@@ -53,9 +53,9 @@ export interface ProfileRow {
   role: UserRole;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface InvitationRow {
+export type InvitationRow = {
   id: string;
   email: string;
   organisation_id: string;
@@ -64,9 +64,9 @@ export interface InvitationRow {
   accepted_at: string | null;
   expires_at: string;
   created_at: string;
-}
+};
 
-export interface PropertyGroupRow {
+export type PropertyGroupRow = {
   id: string;
   extension_id: string;
   coverage_area: string | null;
@@ -75,9 +75,9 @@ export interface PropertyGroupRow {
   display_order: number;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface PropertyRow {
+export type PropertyRow = {
   id: string;
   extension_id: string;
   group_id: string | null;
@@ -88,9 +88,9 @@ export interface PropertyRow {
   schema_definition: Record<string, unknown>;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface PropertyDraftRow {
+export type PropertyDraftRow = {
   id: string;
   property_id: string | null;
   extension_id: string;
@@ -105,9 +105,9 @@ export interface PropertyDraftRow {
   review_note: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface SharedDefinitionRow {
+export type SharedDefinitionRow = {
   id: string;
   name: string;
   description: string | null;
@@ -115,9 +115,9 @@ export interface SharedDefinitionRow {
   field_summary: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface PublishHistoryRow {
+export type PublishHistoryRow = {
   id: string;
   pr_number: number | null;
   pr_url: string | null;
@@ -130,7 +130,7 @@ export interface PublishHistoryRow {
   merged_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 // ------------------------------------------------------------------
 // Insert types (columns with DB defaults are optional)
@@ -249,51 +249,61 @@ export type Database = {
         Row: OrganisationRow;
         Insert: OrganisationInsert;
         Update: OrganisationUpdate;
+        Relationships: [];
       };
       extensions: {
         Row: ExtensionRow;
         Insert: ExtensionInsert;
         Update: ExtensionUpdate;
+        Relationships: [];
       };
       organisation_assignments: {
         Row: OrganisationAssignmentRow;
         Insert: OrganisationAssignmentInsert;
         Update: OrganisationAssignmentUpdate;
+        Relationships: [];
       };
       profiles: {
         Row: ProfileRow;
         Insert: ProfileInsert;
         Update: ProfileUpdate;
+        Relationships: [];
       };
       invitations: {
         Row: InvitationRow;
         Insert: InvitationInsert;
         Update: InvitationUpdate;
+        Relationships: [];
       };
       property_groups: {
         Row: PropertyGroupRow;
         Insert: PropertyGroupInsert;
         Update: PropertyGroupUpdate;
+        Relationships: [];
       };
       properties: {
         Row: PropertyRow;
         Insert: PropertyInsert;
         Update: PropertyUpdate;
+        Relationships: [];
       };
       property_drafts: {
         Row: PropertyDraftRow;
         Insert: PropertyDraftInsert;
         Update: PropertyDraftUpdate;
+        Relationships: [];
       };
       shared_definitions: {
         Row: SharedDefinitionRow;
         Insert: SharedDefinitionInsert;
         Update: SharedDefinitionUpdate;
+        Relationships: [];
       };
       publish_history: {
         Row: PublishHistoryRow;
         Insert: PublishHistoryInsert;
         Update: PublishHistoryUpdate;
+        Relationships: [];
       };
     };
     Views: {
@@ -311,6 +321,7 @@ export type Database = {
             tax: boolean;
           }>;
         };
+        Relationships: [];
       };
     };
     Functions: {
@@ -328,7 +339,7 @@ export type Database = {
             succession: boolean;
             tax: boolean;
           }>;
-        } | null;
+        };
       };
     };
     Enums: {
