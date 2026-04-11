@@ -216,11 +216,12 @@ export type SharedDefinitionInsert = Omit<
 
 export type PublishHistoryInsert = Omit<
   PublishHistoryRow,
-  "id" | "created_at" | "updated_at"
+  "id" | "created_at" | "updated_at" | "merged_at"
 > & {
   id?: string;
   draft_ids?: string[];
   status?: PrStatus;
+  merged_at?: string | null;
   created_at?: string;
   updated_at?: string;
 };
