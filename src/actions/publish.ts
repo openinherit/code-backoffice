@@ -38,7 +38,7 @@ export async function getPublishableDrafts(): Promise<PublishableGroup[]> {
   const { data: drafts, error } = await supabase
     .from("property_drafts")
     .select("*")
-    .in("status", ["approved"])
+    .in("status", ["draft", "approved"])
     .order("extension_id");
 
   if (error) throw new Error(error.message);
