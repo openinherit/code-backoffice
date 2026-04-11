@@ -73,9 +73,12 @@ export function generateExtensionSchema(
     }
   }
 
+  // Strip trailing slash from schema_path to avoid double-slash in paths
+  const basePath = extension.schema_path.replace(/\/+$/, "");
+
   const schema: Record<string, unknown> = {
     $schema: "https://json-schema.org/draft/2020-12/schema",
-    $id: `https://openinherit.org/${extension.schema_path}/${extension.slug}.json`,
+    $id: `https://openinherit.org/${basePath}/${extension.slug}.json`,
     title: `${extension.name} Extension`,
     description: `${extension.name}-specific estate planning properties`,
     maturity: extension.maturity,
@@ -85,7 +88,7 @@ export function generateExtensionSchema(
   };
 
   return {
-    path: `${extension.schema_path}/${extension.slug}.json`,
+    path: `${basePath}/${extension.slug}.json`,
     content: JSON.stringify(schema, null, 2) + "\n",
   };
 }
