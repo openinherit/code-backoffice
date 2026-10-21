@@ -20,6 +20,30 @@ function getRepo(): string {
   return repo;
 }
 
+class GitHubApiError extends Error {
+  constructor(
+    readonly status: number,
+    text: string,
+  ) {
+    super(`GitHub API ${status}: ${text.substring(0, 200)}`);
+  }
+}
+
+// The target repo is public, so a pushed branch is published before any
+// review or redline check can run. Only extension schema files may be written.
+const EXTENSION_SCHEMA_PATH = /^v3\/extensions\/([a-z0-9]+(?:-[a-z0-9]+)*)\/\1\.json$/;
+
+export function assertExtensionSchemaPaths(paths: string[]): void {
+  if (paths.length === 0) throw new Error("Refusing to publish: no files");
+  for (const path of paths) {
+    if (!EXTENSION_SCHEMA_PATH.test(path)) {
+      throw new Error(
+        `Refusing to publish ${path}: not an extension schema path (v3/extensions/<slug>/<slug>.json)`,
+      );
+    }
+  }
+}
+
 async function ghApi(
   path: string,
   options: { method?: string; body?: unknown } = {},
@@ -39,32 +63,36 @@ async function ghApi(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`GitHub API ${res.status}: ${text.substring(0, 200)}`);
+    throw new GitHubApiError(res.status, text);
   }
 
   return res.json();
 }
 
 // ------------------------------------------------------------------
-// Read a file from the repo (returns null when the file doesn't exist)
+// Read a file from the repo. Returns null ONLY when the file does not exist
+// (404). Any other failure throws: a dead credential (401) must not make
+// every file look new in the diff preview.
 // ------------------------------------------------------------------
 
 export async function getFileContent(path: string): Promise<string | null> {
   const owner = getOwner();
   const repo = getRepo();
 
+  let data: { content?: string; encoding?: string };
   try {
-    const data = (await ghApi(
+    data = (await ghApi(
       `/repos/${owner}/${repo}/contents/${path}?ref=main`,
-    )) as { content?: string };
-
-    if (data.content) {
-      return Buffer.from(data.content, "base64").toString("utf-8");
-    }
-    return null;
-  } catch {
-    return null;
+    )) as { content?: string; encoding?: string };
+  } catch (e) {
+    if (e instanceof GitHubApiError && e.status === 404) return null;
+    throw e;
   }
+
+  if (typeof data.content !== "string" || data.encoding === "none") {
+    throw new Error(`GitHub returned no file content for ${path}`);
+  }
+  return Buffer.from(data.content, "base64").toString("utf-8");
 }
 
 // ------------------------------------------------------------------
@@ -76,6 +104,8 @@ export async function createBranchAndCommit(
   files: Array<{ path: string; content: string }>,
   commitMessage: string,
 ): Promise<string> {
+  assertExtensionSchemaPaths(files.map((f) => f.path));
+
   const owner = getOwner();
   const repo = getRepo();
 

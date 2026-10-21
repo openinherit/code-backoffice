@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { generateExtensionSchema } from "@/lib/schema-generator";
+import { buildPublishFile, extensionSchemaPath } from "@/lib/schema-generator";
+import type { Property } from "@/lib/schema-generator";
 import type { SchemaFile } from "@/lib/schema-generator";
 import { computeFileDiff } from "@/lib/diff";
 import type { FileDiff } from "@/lib/diff";
@@ -91,6 +92,22 @@ export async function getPublishableDrafts(): Promise<PublishableGroup[]> {
   return Array.from(groupMap.values());
 }
 
+function toProperty(p: {
+  name: string;
+  description: string | null;
+  schema_type: string;
+  schema_definition: Record<string, unknown>;
+  coverage_area: string | null;
+}): Property {
+  return {
+    name: p.name,
+    description: p.description,
+    schema_type: p.schema_type,
+    schema_definition: p.schema_definition,
+    coverage_area: p.coverage_area ?? "",
+  };
+}
+
 // ------------------------------------------------------------------
 // Generate a diff preview (no side-effects)
 // ------------------------------------------------------------------
@@ -131,12 +148,14 @@ export async function generatePreview(
 
   // Also fetch existing published properties so the generated schema is
   // complete (not just the drafts being published).
-  const { data: existingProps } = await supabase
+  const { data: existingProps, error: propsError } = await supabase
     .from("properties")
     .select("extension_id, name, description, schema_type, schema_definition, coverage_area")
     .in("extension_id", extSlugs);
 
-  // Group drafts + existing properties by extension, preferring drafts
+  if (propsError) throw new Error(propsError.message);
+
+  // One file per extension: drafts merged into the current target file
   const files: SchemaFile[] = [];
   const diffs: FileDiff[] = [];
 
@@ -146,48 +165,20 @@ export async function generatePreview(
 
     const schemaPath = ext.schema_path ?? `v3/extensions/${slug}`;
 
-    // Merge: start with existing properties, override with drafts
-    const propMap = new Map<string, {
-      name: string;
-      description: string | null;
-      schema_type: string;
-      schema_definition: Record<string, unknown>;
-      coverage_area: string;
-    }>();
+    const published = (existingProps ?? [])
+      .filter((p) => p.extension_id === slug)
+      .map(toProperty);
+    const extDrafts = drafts.filter((d) => d.extension_id === slug).map(toProperty);
 
-    for (const p of existingProps ?? []) {
-      if (p.extension_id === slug) {
-        propMap.set(p.name, {
-          name: p.name,
-          description: p.description,
-          schema_type: p.schema_type,
-          schema_definition: p.schema_definition,
-          coverage_area: p.coverage_area ?? "",
-        });
-      }
-    }
+    // Read the current file BEFORE generating: the generator merges into it
+    // so that keys it does not own are kept. A GitHub error (e.g. a dead
+    // token) throws here rather than making the file look new.
+    const extension = { slug, name: ext.name, schema_path: schemaPath, maturity: ext.maturity };
+    const currentContent = await getFileContent(extensionSchemaPath(extension));
 
-    for (const d of drafts) {
-      if (d.extension_id === slug) {
-        propMap.set(d.name, {
-          name: d.name,
-          description: d.description,
-          schema_type: d.schema_type,
-          schema_definition: d.schema_definition,
-          coverage_area: d.coverage_area ?? "",
-        });
-      }
-    }
-
-    const schemaFile = generateExtensionSchema(
-      { slug, name: ext.name, schema_path: schemaPath, maturity: ext.maturity },
-      Array.from(propMap.values()),
-    );
+    const schemaFile = buildPublishFile(extension, published, extDrafts, currentContent);
 
     files.push(schemaFile);
-
-    // Fetch the current file from GitHub for diffing
-    const currentContent = await getFileContent(schemaFile.path);
     diffs.push(computeFileDiff(schemaFile.path, currentContent, schemaFile.content));
   }
 
