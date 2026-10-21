@@ -75,14 +75,17 @@ async function ghApi(
 // every file look new in the diff preview.
 // ------------------------------------------------------------------
 
-export async function getFileContent(path: string): Promise<string | null> {
+export async function getFileContent(
+  path: string,
+  ref: string = "main",
+): Promise<string | null> {
   const owner = getOwner();
   const repo = getRepo();
 
   let data: { content?: string; encoding?: string };
   try {
     data = (await ghApi(
-      `/repos/${owner}/${repo}/contents/${path}?ref=main`,
+      `/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(ref)}`,
     )) as { content?: string; encoding?: string };
   } catch (e) {
     if (e instanceof GitHubApiError && e.status === 404) return null;
@@ -96,13 +99,27 @@ export async function getFileContent(path: string): Promise<string | null> {
 }
 
 // ------------------------------------------------------------------
-// Create a branch, commit files, and return the commit SHA
+// The SHA that main currently points at
+// ------------------------------------------------------------------
+
+export async function getMainSha(): Promise<string> {
+  const ref = (await ghApi(
+    `/repos/${getOwner()}/${getRepo()}/git/ref/heads/main`,
+  )) as { object: { sha: string } };
+  return ref.object.sha;
+}
+
+// ------------------------------------------------------------------
+// Create a branch, commit files, and return the commit SHA.
+// Pass `baseSha` = the commit the files were generated from, so that a
+// change landing on main in between is not silently reverted.
 // ------------------------------------------------------------------
 
 export async function createBranchAndCommit(
   branchName: string,
   files: Array<{ path: string; content: string }>,
   commitMessage: string,
+  baseSha?: string,
 ): Promise<string> {
   assertExtensionSchemaPaths(files.map((f) => f.path));
 
@@ -111,17 +128,13 @@ export async function createBranchAndCommit(
 
   console.log("[github] creating branch:", branchName, "files:", files.map((f) => f.path));
 
-  // Get the SHA that main currently points at
-  const ref = (await ghApi(
-    `/repos/${owner}/${repo}/git/ref/heads/main`,
-  )) as { object: { sha: string } };
-  const baseSha = ref.object.sha;
-  console.log("[github] base SHA:", baseSha);
+  const base = baseSha ?? (await getMainSha());
+  console.log("[github] base SHA:", base);
 
   // Create the new branch
   await ghApi(`/repos/${owner}/${repo}/git/refs`, {
     method: "POST",
-    body: { ref: `refs/heads/${branchName}`, sha: baseSha },
+    body: { ref: `refs/heads/${branchName}`, sha: base },
   });
   console.log("[github] branch created:", branchName);
 
@@ -144,13 +157,13 @@ export async function createBranchAndCommit(
   // Build a tree that layers the new blobs on top of the base
   const tree = (await ghApi(`/repos/${owner}/${repo}/git/trees`, {
     method: "POST",
-    body: { base_tree: baseSha, tree: blobs },
+    body: { base_tree: base, tree: blobs },
   })) as { sha: string };
 
   // Create the commit
   const commit = (await ghApi(`/repos/${owner}/${repo}/git/commits`, {
     method: "POST",
-    body: { message: commitMessage, tree: tree.sha, parents: [baseSha] },
+    body: { message: commitMessage, tree: tree.sha, parents: [base] },
   })) as { sha: string };
 
   // Point the branch at the new commit

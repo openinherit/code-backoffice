@@ -10,6 +10,7 @@ import {
   getFileContent,
   createBranchAndCommit,
   createPullRequest,
+  getMainSha,
 } from "@/lib/github";
 
 // ------------------------------------------------------------------
@@ -119,6 +120,7 @@ export type PublishPreview = {
 
 export async function generatePreview(
   draftIds: string[],
+  ref: string = "main",
 ): Promise<PublishPreview> {
   const supabase = await createClient();
 
@@ -174,7 +176,7 @@ export async function generatePreview(
     // so that keys it does not own are kept. A GitHub error (e.g. a dead
     // token) throws here rather than making the file look new.
     const extension = { slug, name: ext.name, schema_path: schemaPath, maturity: ext.maturity };
-    const currentContent = await getFileContent(extensionSchemaPath(extension));
+    const currentContent = await getFileContent(extensionSchemaPath(extension), ref);
 
     const schemaFile = buildPublishFile(extension, published, extDrafts, currentContent);
 
@@ -215,8 +217,10 @@ async function publishDraftsInner(data: {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Generate the preview (which produces the schema files)
-  const { files } = await generatePreview(data.draftIds);
+  // Generate against one pinned commit, and commit on top of that same
+  // commit: the merged files must replace exactly what they were built from.
+  const baseSha = await getMainSha();
+  const { files } = await generatePreview(data.draftIds, baseSha);
   if (files.length === 0) throw new Error("No files to publish");
 
   // Determine branch name
@@ -233,6 +237,7 @@ async function publishDraftsInner(data: {
     branchName,
     files.map((f) => ({ path: f.path, content: f.content })),
     commitMessage,
+    baseSha,
   );
 
   // Open the PR

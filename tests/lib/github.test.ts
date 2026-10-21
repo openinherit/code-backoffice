@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBranchAndCommit, getFileContent } from "@/lib/github";
+import { createBranchAndCommit, getFileContent, getMainSha } from "@/lib/github";
 
 function respond(status: number, body: unknown) {
   return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
@@ -98,5 +98,40 @@ describe("createBranchAndCommit — path allowlist", () => {
       ),
     ).resolves.toBe("s");
     expect(fetchMock).toHaveBeenCalled();
+  });
+});
+
+describe("pinning reads and the commit to one base commit", () => {
+  // The file the generator merged into must be the file the commit replaces.
+  // If main moves in between, reading at "main" twice would silently revert it.
+  it("getFileContent reads at the given ref", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      respond(200, { content: Buffer.from("{}").toString("base64") }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await getFileContent("v3/extensions/a/a.json", "abc123");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("?ref=abc123");
+  });
+
+  it("createBranchAndCommit builds on the given base SHA without re-reading main", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      respond(200, { sha: "new" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await createBranchAndCommit(
+      "backoffice/publish-1",
+      [{ path: "v3/extensions/a/a.json", content: "{}" }],
+      "m",
+      "base999",
+    );
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes("/git/ref/heads/main"))).toBe(false);
+    const refCall = fetchMock.mock.calls.find((c) => String(c[0]).endsWith("/git/refs"));
+    expect(JSON.parse(String(refCall![1]!.body)).sha).toBe("base999");
+  });
+
+  it("getMainSha returns the SHA main points at", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => respond(200, { object: { sha: "m1" } })));
+    await expect(getMainSha()).resolves.toBe("m1");
   });
 });
