@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateExtensionSchema } from "@/lib/schema-generator";
+import { buildPublishFile, generateExtensionSchema } from "@/lib/schema-generator";
 
 const baseExtension = {
   slug: "scotland",
@@ -273,5 +273,159 @@ describe("generateExtensionSchema", () => {
       "^[A-Z]{1,2}\\d",
     );
     expect(schema.properties.address.description).toBe("Scottish address");
+  });
+});
+
+// ------------------------------------------------------------------
+// Merging into an existing target file. The published extension files
+// carry keys this generator never emits (required, $defs,
+// patternProperties, unevaluatedProperties, dataProvenance, ...).
+// Replacing the file would delete them from the public standard.
+// ------------------------------------------------------------------
+
+const existingFile = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://openinherit.org/v3/extensions/scotland/scotland.json",
+  title: "Scotland — Succession Law Extension",
+  description: "Scots law succession properties",
+  $comment: "hand-authored",
+  maturity: "draft",
+  dataProvenance: { source: "statute" },
+  type: "object",
+  properties: {
+    priorRights: { type: "object", description: "Prior rights" },
+    legalRights: { type: "boolean" },
+  },
+  required: ["priorRights"],
+  $defs: { claim: { type: "string" } },
+  patternProperties: { "^x-": {} },
+  unevaluatedProperties: false,
+};
+const existingContent = JSON.stringify(existingFile, null, 2) + "\n";
+
+function withoutProperties(schema: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(schema).filter(([k]) => k !== "properties"));
+}
+
+const draft = {
+  name: "cohabitationClaim",
+  description: "A cohabitant's claim",
+  schema_type: "boolean",
+  schema_definition: {},
+  coverage_area: "scotland",
+};
+
+describe("generateExtensionSchema — merging into an existing file", () => {
+  it("is a no-op when there are no properties to publish", () => {
+    const result = generateExtensionSchema(baseExtension, [], existingContent);
+    expect(result.content).toBe(existingContent);
+  });
+
+  it("keeps every top-level key it does not own, with its value", () => {
+    const result = generateExtensionSchema(baseExtension, [draft], existingContent);
+    const schema = JSON.parse(result.content);
+    expect(withoutProperties(schema)).toEqual(withoutProperties(existingFile));
+  });
+
+  it("keeps the existing key order", () => {
+    const result = generateExtensionSchema(baseExtension, [draft], existingContent);
+    expect(Object.keys(JSON.parse(result.content))).toEqual(Object.keys(existingFile));
+  });
+
+  it("does not add keys the existing file lacks (no additionalProperties)", () => {
+    const result = generateExtensionSchema(baseExtension, [draft], existingContent);
+    expect(JSON.parse(result.content)).not.toHaveProperty("additionalProperties");
+  });
+
+  it("does not overwrite title, description or maturity from the DB row", () => {
+    const result = generateExtensionSchema(
+      { ...baseExtension, maturity: "stable" },
+      [draft],
+      existingContent,
+    );
+    const schema = JSON.parse(result.content);
+    expect(schema.title).toBe(existingFile.title);
+    expect(schema.description).toBe(existingFile.description);
+    expect(schema.maturity).toBe("draft");
+  });
+
+  it("adds a new property and leaves the others untouched", () => {
+    const result = generateExtensionSchema(baseExtension, [draft], existingContent);
+    const schema = JSON.parse(result.content);
+    expect(schema.properties).toEqual({
+      ...existingFile.properties,
+      cohabitationClaim: { description: "A cohabitant's claim", type: "boolean" },
+    });
+  });
+
+  it("replaces only the named property when it already exists", () => {
+    const result = generateExtensionSchema(
+      baseExtension,
+      [{ ...draft, name: "legalRights", description: "Legal rights", schema_type: "string" }],
+      existingContent,
+    );
+    const schema = JSON.parse(result.content);
+    expect(schema.properties.legalRights).toEqual({ description: "Legal rights", type: "string" });
+    expect(schema.properties.priorRights).toEqual(existingFile.properties.priorRights);
+  });
+
+  it("creates a properties object when the existing file has none", () => {
+    const noProps = withoutProperties(existingFile);
+    const result = generateExtensionSchema(
+      baseExtension,
+      [draft],
+      JSON.stringify(noProps, null, 2) + "\n",
+    );
+    expect(JSON.parse(result.content).properties).toEqual({
+      cohabitationClaim: { description: "A cohabitant's claim", type: "boolean" },
+    });
+  });
+
+  it("refuses an existing file that is not JSON rather than replacing it", () => {
+    expect(() => generateExtensionSchema(baseExtension, [draft], "{not json")).toThrow(
+      /not valid JSON/,
+    );
+  });
+
+  it("refuses an existing file that is not a JSON object", () => {
+    expect(() => generateExtensionSchema(baseExtension, [draft], "[]")).toThrow(
+      /not a JSON object/,
+    );
+  });
+
+  it("still generates a whole new file when there is no existing file", () => {
+    const result = generateExtensionSchema(baseExtension, [draft], null);
+    const schema = JSON.parse(result.content);
+    expect(schema.title).toBe("Scotland Extension");
+    expect(schema.additionalProperties).toBe(false);
+  });
+});
+
+describe("buildPublishFile — which properties go into the file", () => {
+  const published = [
+    { ...draft, name: "priorRights", description: "DB copy, possibly stale", schema_type: "string" },
+  ];
+
+  it("merges only the drafts into an existing file, never the DB's published copies", () => {
+    const result = buildPublishFile(baseExtension, published, [draft], existingContent);
+    const schema = JSON.parse(result.content);
+    expect(schema.properties.priorRights).toEqual(existingFile.properties.priorRights);
+    expect(schema.properties.cohabitationClaim).toBeDefined();
+  });
+
+  it("writes published properties and drafts into a brand-new file", () => {
+    const result = buildPublishFile(baseExtension, published, [draft], null);
+    const schema = JSON.parse(result.content);
+    expect(Object.keys(schema.properties)).toEqual(["priorRights", "cohabitationClaim"]);
+  });
+
+  it("lets a draft override a published property of the same name in a new file", () => {
+    const result = buildPublishFile(
+      baseExtension,
+      published,
+      [{ ...draft, name: "priorRights", schema_type: "boolean" }],
+      null,
+    );
+    expect(JSON.parse(result.content).properties.priorRights.type).toBe("boolean");
   });
 });
